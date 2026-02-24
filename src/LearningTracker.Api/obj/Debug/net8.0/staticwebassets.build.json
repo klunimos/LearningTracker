@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "yfDNXbVLkV1zjWgCmqCtk8GIB3jrAoi0rvzTuqkElfw=",
+  "Source": "LearningTracker.Api",
+  "BasePath": "_content/LearningTracker.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
