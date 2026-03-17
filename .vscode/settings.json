@@ -1,0 +1,10 @@
+{
+  "files.exclude": {
+    "**/TestResults": true,
+    "**/.vs": true,
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/*.sln": true
+  },
+  "workbench.colorTheme": "Default Light Modern"
+}

@@ -1,0 +1,29 @@
+---
+description: Guard - never commit or push without explicit user instruction
+alwaysApply: true
+---
+
+# Commit Guard
+
+## ⚠️ NEVER COMMIT OR PUSH WITHOUT EXPLICIT INSTRUCTION
+
+This applies in **normal (non-orchestrated) conversation mode**.
+
+**NEVER run `git commit` or `git push` unless the user explicitly asks in their CURRENT message.**
+
+Explicit instruction means:
+- ✅ `/cpc` · "commit" · "commit and push" · "סיסן" · "please commit this"
+- ❌ User asked previously (earlier message)
+- ❌ You finished a task and assume they want a commit
+
+`/cpc` applies to **ONE action only** — each commit requires a new explicit instruction.
+
+When in doubt — **ask**. Never commit "just to be helpful".
+
+---
+
+## Orchestration Mode
+
+**`git commit` and `git push` are NEVER done automatically — not even during `orchestrate run`.**
+Push AND commit both require an explicit `/cpc` from the user.
+The main agent and all sub-agents do **not** run any git commands during orchestration.

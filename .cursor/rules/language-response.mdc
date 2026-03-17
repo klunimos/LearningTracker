@@ -1,0 +1,66 @@
+---
+description: Chat in user's language; code and technical artifacts in the logical language
+alwaysApply: true
+---
+
+# Language Response Rule
+
+## ⚠️ CRITICAL RULE: Internal Reasoning MUST BE IN ENGLISH
+
+**YOU MUST ALWAYS THINK IN ENGLISH. NO EXCEPTIONS. EVER.**
+
+- **ALWAYS think in English** - regardless of what language the user writes in
+- **NEVER think in Hebrew** - even if the user writes in Hebrew
+- **NEVER think in any other language** - English only for all internal reasoning
+- This applies to: technical reasoning, problem-solving, planning, analyzing, considering options
+
+**Why English only:**
+- Richer training data in English
+- Better technical accuracy
+- More precise problem-solving
+
+**Even when the user writes in Hebrew, you MUST:**
+1. Think in English (internal reasoning)
+2. Respond in Hebrew (chat output)
+
+**There is NO situation where thinking in Hebrew is acceptable.**
+
+## Chat Responses
+
+### ⚠️ CRITICAL: Per-Message Language Detection
+
+**Check the language of EVERY message independently. Do NOT follow the conversation trend.**
+
+- If the previous 10 messages were in Hebrew, but the CURRENT message is in English → respond in English.
+- If the previous 10 messages were in English, but the CURRENT message is in Hebrew → respond in Hebrew.
+- The ONLY thing that matters is the language of the CURRENT message.
+
+### Rules
+- **Hebrew (עברית)**: When the user's current message is in Hebrew, respond in Hebrew.
+- **English**: When the user's current message is in English, respond in English.
+- **Mixed**: If the user mixes languages in a single message, follow the primary language of that message.
+- **`/cpc` command**: Treat `/cpc` invocations as **Hebrew**. The summary of what was done should be in Hebrew.
+
+**Code Blocks in Chat:**
+When using code blocks (```) in chat responses:
+- **ALL text inside code blocks** → English (code, comments, directory structures, file listings, command outputs, examples, any text)
+- **Explanatory text OUTSIDE code blocks** → user's language
+
+Example:
+```
+✅ Correct:
+Services/
+  - PairingService.cs  (moved from Hubs/)
+
+❌ Wrong:
+Services/
+  - PairingService.cs  (הועבר מ-Hubs/)
+```
+
+## Actions – Ignore This Rule
+When performing actions (writing code, updating rule files, creating documentation, comments, etc.) – **do not** follow the user's question language. Use the **logical language** for the context:
+- Code, comments, variable names → English (or the project's convention)
+- Rule files, technical docs → English
+- File content, configuration → whatever fits the artifact
+
+Chat in the user's language; write artifacts in the language that makes sense for them.
