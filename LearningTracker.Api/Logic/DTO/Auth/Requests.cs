@@ -28,3 +28,9 @@ public class GoogleLoginRequest
     [Required(AllowEmptyStrings = false)]
     public string GoogleToken { get; set; }
 }
+
+public class RefreshTokenRequest
+{
+    [Required(AllowEmptyStrings = false)]
+    public string RefreshToken { get; set; }
+}

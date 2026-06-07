@@ -1,5 +1,6 @@
 using LearningTracker.Api.Data;
 using LearningTracker.Api.Data.Entities;
+using LearningTracker.Api.Logic.DTO.Group;
 using LearningTracker.Api.Logic.DTO.GroupGoal;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,7 +27,10 @@ public class GroupGoalService : IGroupGoalService
 
     public async Task<List<GroupGoalSummaryResponse>> GetByGroupAsync(int userId, int groupId)
     {
-        var group = await db.Groups.FirstOrDefaultAsync(g => g.Id == groupId);
+        var group = await db.Groups
+            .Include(g => g.GroupGoals).ThenInclude(gg => gg.GroupGoalMembers)
+            .Include(g => g.GroupGoals).ThenInclude(gg => gg.GroupGoalBooks)
+            .FirstOrDefaultAsync(g => g.Id == groupId);
         if (group == null)
             return new List<GroupGoalSummaryResponse>();
 
@@ -41,32 +45,70 @@ public class GroupGoalService : IGroupGoalService
 
     public async Task<List<GroupGoalHomeItemResponse>> GetMyParticipatingGoalsAsync(int userId)
     {
-        var participatingGoalIds = await db.GroupGoalMembers
-            .Where(m => m.UserId == userId)
-            .Select(m => m.GroupGoalId)
+        var goals = await db.GroupGoals
+            .Include(g => g.Group)
+            .Include(g => g.Category)
+            .Include(g => g.GroupGoalBooks).ThenInclude(ggb => ggb.Book)
+            .Where(g => g.GroupGoalMembers.Any(m => m.UserId == userId))
+            .OrderByDescending(g => g.CreatedAt)
             .ToListAsync();
 
-        var result = new List<GroupGoalHomeItemResponse>();
-        foreach (var goalId in participatingGoalIds)
-        {
-            var goal = await db.GroupGoals
-                .Include(g => g.GroupGoalBooks).ThenInclude(ggb => ggb.Book)
-                .FirstOrDefaultAsync(g => g.Id == goalId);
-            if (goal == null)
-                continue;
+        var goalIds = goals.Select(g => g.Id).ToList();
+        var allBookIds = goals
+            .SelectMany(g => g.GroupGoalBooks.Select(ggb => ggb.BookId))
+            .Distinct()
+            .ToList();
 
-            result.Add(await BuildGroupGoalHomeItemAsync(goal, userId));
+        var unitCountsByBook = await db.BookUnits
+            .Where(u => allBookIds.Contains(u.BookId))
+            .GroupBy(u => u.BookId)
+            .Select(g => new { BookId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.BookId, x => x.Count);
+
+        var latestEntries = await db.GroupProgressEntries
+            .Where(pe => goalIds.Contains(pe.GroupGoalId) && pe.UserId == userId)
+            .GroupBy(pe => new { pe.GroupGoalId, pe.BookId })
+            .Select(g => g.OrderByDescending(pe => pe.ReportedAt).First())
+            .ToListAsync();
+
+        var latestUnitIds = latestEntries.Select(e => e.UnitId).Distinct().ToList();
+        var latestUnits = await db.BookUnits
+            .Where(u => latestUnitIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
+
+        var allUnitsByBook = new Dictionary<int, List<BookUnit>>();
+        foreach (var goal in goals.Where(g => g.TargetDate.HasValue))
+        {
+            var bIds = goal.GroupGoalBooks.Select(ggb => ggb.BookId).ToList();
+            foreach (var bookId in bIds)
+            {
+                if (!allUnitsByBook.ContainsKey(bookId))
+                {
+                    allUnitsByBook[bookId] = await db.BookUnits
+                        .Where(u => u.BookId == bookId)
+                        .OrderBy(u => u.SortOrder)
+                        .ToListAsync();
+                }
+            }
         }
-        return result.OrderByDescending(x => x.CreatedAt).ToList();
+
+        var result = new List<GroupGoalHomeItemResponse>();
+        foreach (var goal in goals)
+        {
+            result.Add(BuildGroupGoalHomeItem(goal, userId, unitCountsByBook, latestEntries, latestUnits, allUnitsByBook));
+        }
+        return result;
     }
 
     public async Task<(GroupGoalDetailResponse response, CreateGroupGoalStatus status)> CreateGroupGoalAsync(int userId, CreateGroupGoalRequest request)
     {
-        var group = await db.Groups.FirstOrDefaultAsync(g => g.Id == request.GroupId);
+        var group = await db.Groups
+            .Include(g => g.Members)
+            .FirstOrDefaultAsync(g => g.Id == request.GroupId);
         if (group == null)
             return (null, CreateGroupGoalStatus.GroupNotFound);
 
-        bool isAdmin = group.Members.Any(m => m.UserId == userId && m.Role == "Admin");
+        bool isAdmin = group.Members.Any(m => m.UserId == userId && m.Role == GroupRoles.Admin);
         if (!isAdmin)
             return (null, CreateGroupGoalStatus.NotGroupAdmin);
 
@@ -97,20 +139,19 @@ public class GroupGoalService : IGroupGoalService
             TargetDate = request.TargetDate,
             CollectiveTargetUnitId = request.CollectiveTargetUnitId,
             CreatedByUserId = userId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            GroupGoalMembers = new List<GroupGoalMember>()
         };
-
-        db.GroupGoals.Add(goal);
-        await db.SaveChangesAsync();
 
         if (!isCategoryGoal)
         {
-            foreach (var bookId in request.BookIds)
-            {
-                db.GroupGoalBooks.Add(new GroupGoalBook { GroupGoalId = goal.Id, BookId = bookId });
-            }
-            await db.SaveChangesAsync();
+            goal.GroupGoalBooks = request.BookIds
+                .Select(bookId => new GroupGoalBook { BookId = bookId })
+                .ToList();
         }
+
+        db.GroupGoals.Add(goal);
+        await db.SaveChangesAsync();
 
         var response = await BuildGoalDetailAsync(goal, false);
         return (response, CreateGroupGoalStatus.Success);
@@ -118,7 +159,11 @@ public class GroupGoalService : IGroupGoalService
 
     public async Task<(GroupGoalDetailResponse response, JoinGroupGoalStatus status)> JoinGroupGoalAsync(int userId, JoinGroupGoalRequest request)
     {
-        var goal = await db.GroupGoals.FirstOrDefaultAsync(g => g.Id == request.GroupGoalId);
+        var goal = await db.GroupGoals
+            .Include(g => g.Group).ThenInclude(g => g.Members)
+            .Include(g => g.GroupGoalMembers)
+            .Include(g => g.GroupGoalBooks)
+            .FirstOrDefaultAsync(g => g.Id == request.GroupGoalId);
         if (goal == null)
             return (null, JoinGroupGoalStatus.GoalNotFound);
 
@@ -130,13 +175,16 @@ public class GroupGoalService : IGroupGoalService
         if (alreadyParticipating)
             return (null, JoinGroupGoalStatus.AlreadyParticipating);
 
-        db.GroupGoalMembers.Add(new GroupGoalMember
+        var newMember = new GroupGoalMember
         {
             GroupGoalId = goal.Id,
             UserId = userId,
             JoinedAt = DateTime.UtcNow
-        });
+        };
+        db.GroupGoalMembers.Add(newMember);
         await db.SaveChangesAsync();
+
+        await db.Entry(newMember).Reference(m => m.User).LoadAsync();
 
         var response = await BuildGoalDetailAsync(goal, true);
         return (response, JoinGroupGoalStatus.Success);
@@ -144,7 +192,10 @@ public class GroupGoalService : IGroupGoalService
 
     public async Task<(GroupGoalDetailResponse response, ReportGroupProgressStatus status)> ReportProgressAsync(int userId, ReportGroupProgressRequest request)
     {
-        var goal = await db.GroupGoals.FirstOrDefaultAsync(g => g.Id == request.GroupGoalId);
+        var goal = await db.GroupGoals
+            .Include(g => g.GroupGoalMembers).ThenInclude(m => m.User)
+            .Include(g => g.GroupGoalBooks)
+            .FirstOrDefaultAsync(g => g.Id == request.GroupGoalId);
         if (goal == null)
             return (null, ReportGroupProgressStatus.GoalNotFound);
 
@@ -180,7 +231,11 @@ public class GroupGoalService : IGroupGoalService
 
     public async Task<(List<MemberProgressResponse> response, bool found)> GetMembersProgressAsync(int userId, int groupGoalId)
     {
-        var goal = await db.GroupGoals.FirstOrDefaultAsync(g => g.Id == groupGoalId);
+        var goal = await db.GroupGoals
+            .Include(g => g.Group).ThenInclude(g => g.Members)
+            .Include(g => g.GroupGoalMembers).ThenInclude(m => m.User)
+            .Include(g => g.GroupGoalBooks)
+            .FirstOrDefaultAsync(g => g.Id == groupGoalId);
         if (goal == null)
             return (null, false);
 
@@ -231,18 +286,22 @@ public class GroupGoalService : IGroupGoalService
 
     private async Task<List<MemberProgressResponse>> BuildMembersProgressAsync(GroupGoal goal)
     {
-        List<int> bookIds;
-        if (goal.CategoryId.HasValue)
-        {
-            bookIds = await db.Books
-                .Where(b => b.CategoryId == goal.CategoryId.Value)
-                .Select(b => b.Id)
-                .ToListAsync();
-        }
-        else
-        {
-            bookIds = goal.GroupGoalBooks.Select(ggb => ggb.BookId).ToList();
-        }
+        List<int> bookIds = await GetGoalBookIdsAsync(goal);
+        var memberUserIds = goal.GroupGoalMembers.Select(m => m.UserId).ToList();
+
+        var books = await db.Books
+            .Where(b => bookIds.Contains(b.Id))
+            .ToDictionaryAsync(b => b.Id);
+
+        var unitsByBook = await db.BookUnits
+            .Where(u => bookIds.Contains(u.BookId))
+            .OrderBy(u => u.SortOrder)
+            .GroupBy(u => u.BookId)
+            .ToDictionaryAsync(g => g.Key, g => g.ToList());
+
+        var allEntries = await db.GroupProgressEntries
+            .Where(pe => pe.GroupGoalId == goal.Id && memberUserIds.Contains(pe.UserId) && bookIds.Contains(pe.BookId))
+            .ToListAsync();
 
         var result = new List<MemberProgressResponse>();
 
@@ -250,48 +309,34 @@ public class GroupGoalService : IGroupGoalService
         {
             foreach (var bookId in bookIds)
             {
-                var book = await db.Books.FirstAsync(b => b.Id == bookId);
-                int totalUnits = await db.BookUnits.CountAsync(u => u.BookId == bookId);
+                var book = books[bookId];
+                var bookUnits = unitsByBook.GetValueOrDefault(bookId) ?? new List<BookUnit>();
+                int totalUnits = bookUnits.Count;
 
-                var latestEntry = await db.GroupProgressEntries
-                    .Where(pe => pe.GroupGoalId == goal.Id && pe.UserId == member.UserId && pe.BookId == bookId)
+                var latestEntry = allEntries
+                    .Where(pe => pe.UserId == member.UserId && pe.BookId == bookId)
                     .OrderByDescending(pe => pe.ReportedAt)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefault();
 
                 string currentUnitName = null;
                 double progressPercent = 0;
 
                 if (latestEntry != null)
                 {
-                    var currentUnit = await db.BookUnits.FirstAsync(u => u.Id == latestEntry.UnitId);
+                    var currentUnit = bookUnits.First(u => u.Id == latestEntry.UnitId);
                     currentUnitName = currentUnit.DisplayName;
-
-                    int completed = await db.BookUnits
-                        .CountAsync(u => u.BookId == bookId && u.SortOrder <= currentUnit.SortOrder);
-
+                    int completed = bookUnits.Count(u => u.SortOrder <= currentUnit.SortOrder);
                     progressPercent = totalUnits > 0 ? Math.Round((double)completed / totalUnits * 100, 1) : 0;
                 }
 
                 string expectedUnitName = null;
                 if (goal.TargetDate.HasValue && totalUnits > 0)
                 {
-                    var goalStartDate = goal.CreatedAt.Date;
-                    var targetDateTime = goal.TargetDate.Value.ToDateTime(TimeOnly.MinValue);
-                    double totalDays = (targetDateTime - goalStartDate).TotalDays;
-                    if (totalDays < 1)
-                        totalDays = 1;
-                    double daysElapsed = (DateTime.UtcNow - goal.CreatedAt).TotalDays;
-                    double ratio = Math.Min(1, daysElapsed / totalDays);
-                    int expectedIndex = (int)(ratio * totalUnits);
-                    if (expectedIndex < 1)
-                        expectedIndex = 1;
-                    var expectedUnit = await db.BookUnits
-                        .Where(u => u.BookId == bookId)
-                        .OrderBy(u => u.SortOrder)
-                        .Skip(expectedIndex - 1)
-                        .FirstOrDefaultAsync();
+                    var expectedUnit = CalculateExpectedUnit(goal, bookUnits, totalUnits);
                     if (expectedUnit != null)
+                    {
                         expectedUnitName = expectedUnit.DisplayName;
+                    }
                 }
 
                 result.Add(new MemberProgressResponse
@@ -310,23 +355,19 @@ public class GroupGoalService : IGroupGoalService
         return result;
     }
 
-    private async Task<GroupGoalHomeItemResponse> BuildGroupGoalHomeItemAsync(GroupGoal goal, int userId)
+    private GroupGoalHomeItemResponse BuildGroupGoalHomeItem(
+        GroupGoal goal,
+        int userId,
+        Dictionary<int, int> unitCountsByBook,
+        List<GroupProgressEntry> latestEntries,
+        Dictionary<int, BookUnit> latestUnits,
+        Dictionary<int, List<BookUnit>> allUnitsByBook)
     {
-        var group = await db.Groups.FirstAsync(g => g.Id == goal.GroupId);
-        string scopeName = await GetScopeNameAsync(goal);
+        string scopeName = goal.CategoryId.HasValue
+            ? goal.Category?.Name ?? ""
+            : string.Join(", ", goal.GroupGoalBooks.Select(ggb => ggb.Book.Name));
 
-        List<int> bookIds;
-        if (goal.CategoryId.HasValue)
-        {
-            bookIds = await db.Books
-                .Where(b => b.CategoryId == goal.CategoryId.Value)
-                .Select(b => b.Id)
-                .ToListAsync();
-        }
-        else
-        {
-            bookIds = goal.GroupGoalBooks.Select(ggb => ggb.BookId).ToList();
-        }
+        var bookIds = goal.GroupGoalBooks.Select(ggb => ggb.BookId).ToList();
 
         double progressPercent = 0;
         string currentUnitName = null;
@@ -336,49 +377,37 @@ public class GroupGoalService : IGroupGoalService
         if (bookIds.Count > 0)
         {
             var bookId = bookIds[0];
-            int totalUnits = await db.BookUnits.CountAsync(u => u.BookId == bookId);
+            int totalUnits = unitCountsByBook.GetValueOrDefault(bookId, 0);
 
-            Data.Entities.BookUnit currentUnit = null;
-            var latestEntry = await db.GroupProgressEntries
-                .Where(pe => pe.GroupGoalId == goal.Id && pe.UserId == userId && pe.BookId == bookId)
-                .OrderByDescending(pe => pe.ReportedAt)
-                .FirstOrDefaultAsync();
+            BookUnit currentUnit = null;
+            var latestEntry = latestEntries
+                .FirstOrDefault(e => e.GroupGoalId == goal.Id && e.BookId == bookId);
 
-            if (latestEntry != null)
+            if (latestEntry != null && latestUnits.TryGetValue(latestEntry.UnitId, out currentUnit))
             {
-                currentUnit = await db.BookUnits.FirstAsync(u => u.Id == latestEntry.UnitId);
                 currentUnitName = currentUnit.DisplayName;
-                int completed = await db.BookUnits
-                    .CountAsync(u => u.BookId == bookId && u.SortOrder <= currentUnit.SortOrder);
-                progressPercent = totalUnits > 0 ? Math.Round((double)completed / totalUnits * 100, 1) : 0;
+                var bookUnits = allUnitsByBook.GetValueOrDefault(bookId);
+                if (bookUnits != null)
+                {
+                    int completed = bookUnits.Count(u => u.SortOrder <= currentUnit.SortOrder);
+                    progressPercent = totalUnits > 0 ? Math.Round((double)completed / totalUnits * 100, 1) : 0;
+                }
             }
 
-            Data.Entities.BookUnit expectedUnit = null;
-            if (goal.TargetDate.HasValue && totalUnits > 0)
+            BookUnit expectedUnit = null;
+            if (goal.TargetDate.HasValue && totalUnits > 0 && allUnitsByBook.TryGetValue(bookId, out var units))
             {
-                var goalStartDate = goal.CreatedAt.Date;
-                var targetDateTime = goal.TargetDate.Value.ToDateTime(TimeOnly.MinValue);
-                double totalDays = (targetDateTime - goalStartDate).TotalDays;
-                if (totalDays < 1)
-                    totalDays = 1;
-                double daysElapsed = (DateTime.UtcNow - goal.CreatedAt).TotalDays;
-                double ratio = Math.Min(1, daysElapsed / totalDays);
-                int expectedIndex = (int)(ratio * totalUnits);
-                if (expectedIndex < 1)
-                    expectedIndex = 1;
-                expectedUnit = await db.BookUnits
-                    .Where(u => u.BookId == bookId)
-                    .OrderBy(u => u.SortOrder)
-                    .Skip(expectedIndex - 1)
-                    .FirstOrDefaultAsync();
+                expectedUnit = CalculateExpectedUnit(goal, units, totalUnits);
                 if (expectedUnit != null)
+                {
                     expectedUnitName = expectedUnit.DisplayName;
+                }
             }
 
-            if (currentUnit != null && expectedUnit != null)
+            if (currentUnit != null && expectedUnit != null && allUnitsByBook.TryGetValue(bookId, out var bookUnitList))
             {
-                int currentIndex = await db.BookUnits.CountAsync(u => u.BookId == bookId && u.SortOrder <= currentUnit.SortOrder);
-                int expectedIndex = await db.BookUnits.CountAsync(u => u.BookId == bookId && u.SortOrder <= expectedUnit.SortOrder);
+                int currentIndex = bookUnitList.Count(u => u.SortOrder <= currentUnit.SortOrder);
+                int expectedIndex = bookUnitList.Count(u => u.SortOrder <= expectedUnit.SortOrder);
                 unitsDelta = currentIndex - expectedIndex;
             }
         }
@@ -387,7 +416,7 @@ public class GroupGoalService : IGroupGoalService
         {
             Id = goal.Id,
             GroupId = goal.GroupId,
-            GroupName = group.Name,
+            GroupName = goal.Group.Name,
             Title = goal.Title,
             IsCategoryGoal = goal.CategoryId.HasValue,
             ScopeName = scopeName,
@@ -398,6 +427,34 @@ public class GroupGoalService : IGroupGoalService
             UnitsDelta = unitsDelta,
             CreatedAt = goal.CreatedAt
         };
+    }
+
+    private static BookUnit CalculateExpectedUnit(GroupGoal goal, List<BookUnit> bookUnits, int totalUnits)
+    {
+        var goalStartDate  = goal.CreatedAt.Date;
+        var targetDateTime = goal.TargetDate.Value.ToDateTime(TimeOnly.MinValue);
+        double totalDays   = Math.Max(1, (targetDateTime - goalStartDate).TotalDays);
+        double daysElapsed = (DateTime.UtcNow - goal.CreatedAt).TotalDays;
+        double ratio       = Math.Min(1, daysElapsed / totalDays);
+        int expectedIndex  = Math.Max(1, (int)(ratio * totalUnits));
+
+        return bookUnits
+            .OrderBy(u => u.SortOrder)
+            .Skip(expectedIndex - 1)
+            .FirstOrDefault();
+    }
+
+    private async Task<List<int>> GetGoalBookIdsAsync(GroupGoal goal)
+    {
+        if (goal.CategoryId.HasValue)
+        {
+            return await db.Books
+                .Where(b => b.CategoryId == goal.CategoryId.Value)
+                .Select(b => b.Id)
+                .ToListAsync();
+        }
+
+        return goal.GroupGoalBooks.Select(ggb => ggb.BookId).ToList();
     }
 
     private async Task<string> GetScopeNameAsync(GroupGoal goal)

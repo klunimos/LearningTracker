@@ -11,9 +11,9 @@ public class ProgressEntry
     public string Note { get; set; }
     public DateTime ReportedAt { get; set; }
 
-    public virtual Goal Goal { get; set; }
-    public virtual User User { get; set; }
-    public virtual Book Book { get; set; }
-    public virtual BookUnit FromUnit { get; set; }
-    public virtual BookUnit ToUnit { get; set; }
+    public Goal Goal { get; set; }
+    public User User { get; set; }
+    public Book Book { get; set; }
+    public BookUnit FromUnit { get; set; }
+    public BookUnit ToUnit { get; set; }
 }

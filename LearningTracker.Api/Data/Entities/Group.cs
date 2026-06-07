@@ -11,7 +11,7 @@ public class Group
     public int CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    public virtual User CreatedBy { get; set; }
-    public virtual ICollection<GroupMember> Members { get; set; }
-    public virtual ICollection<GroupGoal> GroupGoals { get; set; }
+    public User CreatedBy { get; set; }
+    public ICollection<GroupMember> Members { get; set; }
+    public ICollection<GroupGoal> GroupGoals { get; set; }
 }

@@ -49,7 +49,6 @@ public class GroupGoalHomeItemResponse
     public double ProgressPercent { get; set; }
     public string CurrentUnitName { get; set; }
     public string ExpectedUnitName { get; set; }
-    /// <summary>Negative = behind, 0 = on track, positive = ahead (units). Null when unknown.</summary>
     public int? UnitsDelta { get; set; }
     public DateTime CreatedAt { get; set; }
 }

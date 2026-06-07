@@ -6,6 +6,6 @@ public class GroupGoalMember
     public int UserId { get; set; }
     public DateTime JoinedAt { get; set; }
 
-    public virtual GroupGoal GroupGoal { get; set; }
-    public virtual User User { get; set; }
+    public GroupGoal GroupGoal { get; set; }
+    public User User { get; set; }
 }

@@ -10,8 +10,8 @@ public class GroupProgressEntry
     public bool IsCollectiveTarget { get; set; }
     public DateTime ReportedAt { get; set; }
 
-    public virtual GroupGoal GroupGoal { get; set; }
-    public virtual User User { get; set; }
-    public virtual Book Book { get; set; }
-    public virtual BookUnit Unit { get; set; }
+    public GroupGoal GroupGoal { get; set; }
+    public User User { get; set; }
+    public Book Book { get; set; }
+    public BookUnit Unit { get; set; }
 }

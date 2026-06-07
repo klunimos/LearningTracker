@@ -27,7 +27,6 @@ public class BookProgressResponse
     public int? ExpectedUnitId { get; set; }
     public int TotalUnits { get; set; }
     public double ProgressPercent { get; set; }
-    /// <summary>All unit IDs covered by reported ranges for this book/goal.</summary>
     public List<int> ReportedUnitIds { get; set; } = new();
 }
 

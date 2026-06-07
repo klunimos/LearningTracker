@@ -11,10 +11,10 @@ public class BookUnit
     public string DisplayName { get; set; }
     public int SortOrder { get; set; }
 
-    public virtual Book Book { get; set; }
-    public virtual ICollection<Goal> GoalsAsStart { get; set; }
-    public virtual ICollection<ProgressEntry> ProgressEntriesAsFrom { get; set; }
-    public virtual ICollection<ProgressEntry> ProgressEntriesAsTo { get; set; }
-    public virtual ICollection<GroupProgressEntry> GroupProgressEntries { get; set; }
-    public virtual ICollection<GroupGoal> GroupGoalsAsCollectiveTarget { get; set; }
+    public Book Book { get; set; }
+    public ICollection<Goal> GoalsAsStart { get; set; }
+    public ICollection<ProgressEntry> ProgressEntriesAsFrom { get; set; }
+    public ICollection<ProgressEntry> ProgressEntriesAsTo { get; set; }
+    public ICollection<GroupProgressEntry> GroupProgressEntries { get; set; }
+    public ICollection<GroupGoal> GroupGoalsAsCollectiveTarget { get; set; }
 }

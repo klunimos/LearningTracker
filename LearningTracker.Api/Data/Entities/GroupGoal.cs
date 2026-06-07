@@ -11,11 +11,11 @@ public class GroupGoal
     public int CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    public virtual Group Group { get; set; }
-    public virtual Category Category { get; set; }
-    public virtual BookUnit CollectiveTargetUnit { get; set; }
-    public virtual User CreatedBy { get; set; }
-    public virtual ICollection<GroupGoalBook> GroupGoalBooks { get; set; }
-    public virtual ICollection<GroupGoalMember> GroupGoalMembers { get; set; }
-    public virtual ICollection<GroupProgressEntry> ProgressEntries { get; set; }
+    public Group Group { get; set; }
+    public Category Category { get; set; }
+    public BookUnit CollectiveTargetUnit { get; set; }
+    public User CreatedBy { get; set; }
+    public ICollection<GroupGoalBook> GroupGoalBooks { get; set; }
+    public ICollection<GroupGoalMember> GroupGoalMembers { get; set; }
+    public ICollection<GroupProgressEntry> ProgressEntries { get; set; }
 }

@@ -14,9 +14,9 @@ public class Goal
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
-    public virtual User User { get; set; }
-    public virtual Category Category { get; set; }
-    public virtual BookUnit StartUnit { get; set; }
-    public virtual ICollection<GoalBook> GoalBooks { get; set; }
-    public virtual ICollection<ProgressEntry> ProgressEntries { get; set; }
+    public User User { get; set; }
+    public Category Category { get; set; }
+    public BookUnit StartUnit { get; set; }
+    public ICollection<GoalBook> GoalBooks { get; set; }
+    public ICollection<ProgressEntry> ProgressEntries { get; set; }
 }

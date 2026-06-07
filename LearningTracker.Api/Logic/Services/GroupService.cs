@@ -3,6 +3,8 @@ using LearningTracker.Api.Data.Entities;
 using LearningTracker.Api.Logic.DTO.Group;
 using Microsoft.EntityFrameworkCore;
 
+using static LearningTracker.Api.Logic.DTO.Group.GroupRoles;
+
 namespace LearningTracker.Api.Logic.Services;
 
 public interface IGroupService
@@ -12,7 +14,7 @@ public interface IGroupService
     Task<(GroupDetailResponse response, JoinGroupStatus status)> JoinGroupAsync(int userId, JoinGroupRequest request);
     Task<(GroupDetailResponse response, UpdateGroupSettingsStatus status)> UpdateSettingsAsync(int userId, UpdateGroupSettingsRequest request);
     Task<(GroupDetailResponse response, bool found)> GetGroupDetailAsync(int userId, int groupId);
-    Task<List<GroupSummaryResponse>> SearchGroupsAsync(int userId, string query);
+    Task<List<GroupSummaryResponse>> SearchGroupsAsync(int userId, string query, int take = 20);
 }
 
 public class GroupService : IGroupService
@@ -27,6 +29,8 @@ public class GroupService : IGroupService
     public async Task<List<GroupSummaryResponse>> GetMyGroupsAsync(int userId)
     {
         var memberships = await db.GroupMembers
+            .Include(gm => gm.Group).ThenInclude(g => g.Members)
+            .Include(gm => gm.Group).ThenInclude(g => g.GroupGoals)
             .Where(gm => gm.UserId == userId)
             .ToListAsync();
 
@@ -56,28 +60,33 @@ public class GroupService : IGroupService
             IsPublic = request.IsPublic,
             InviteCode = inviteCode,
             CreatedByUserId = userId,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Members = new List<GroupMember>
+            {
+                new GroupMember
+                {
+                    UserId = userId,
+                    Role = GroupRoles.Admin,
+                    JoinedAt = DateTime.UtcNow
+                }
+            }
         };
 
         db.Groups.Add(group);
         await db.SaveChangesAsync();
 
-        db.GroupMembers.Add(new GroupMember
-        {
-            GroupId = group.Id,
-            UserId = userId,
-            Role = "Admin",
-            JoinedAt = DateTime.UtcNow
-        });
-        await db.SaveChangesAsync();
+        await db.Entry(group).Collection(g => g.Members).Query()
+            .Include(m => m.User)
+            .LoadAsync();
 
-        var response = BuildGroupDetail(group, "Admin");
+        var response = BuildGroupDetail(group, Admin);
         return (response, CreateGroupStatus.Success);
     }
 
     public async Task<(GroupDetailResponse response, JoinGroupStatus status)> JoinGroupAsync(int userId, JoinGroupRequest request)
     {
         var group = await db.Groups
+            .Include(g => g.Members).ThenInclude(m => m.User)
             .FirstOrDefaultAsync(g => g.InviteCode == request.InviteCode);
 
         if (group == null)
@@ -87,26 +96,31 @@ public class GroupService : IGroupService
         if (alreadyMember)
             return (null, JoinGroupStatus.AlreadyMember);
 
-        db.GroupMembers.Add(new GroupMember
+        var newMember = new GroupMember
         {
             GroupId = group.Id,
             UserId = userId,
-            Role = "Member",
+            Role = Member,
             JoinedAt = DateTime.UtcNow
-        });
+        };
+        db.GroupMembers.Add(newMember);
         await db.SaveChangesAsync();
 
-        var response = BuildGroupDetail(group, "Member");
+        await db.Entry(newMember).Reference(m => m.User).LoadAsync();
+
+        var response = BuildGroupDetail(group, Member);
         return (response, JoinGroupStatus.Success);
     }
 
     public async Task<(GroupDetailResponse response, UpdateGroupSettingsStatus status)> UpdateSettingsAsync(int userId, UpdateGroupSettingsRequest request)
     {
-        var group = await db.Groups.FirstOrDefaultAsync(g => g.Id == request.GroupId);
+        var group = await db.Groups
+            .Include(g => g.Members).ThenInclude(m => m.User)
+            .FirstOrDefaultAsync(g => g.Id == request.GroupId);
         if (group == null)
             return (null, UpdateGroupSettingsStatus.GroupNotFound);
 
-        bool isAdmin = group.Members.Any(m => m.UserId == userId && m.Role == "Admin");
+        bool isAdmin = group.Members.Any(m => m.UserId == userId && m.Role == Admin);
         if (!isAdmin)
             return (null, UpdateGroupSettingsStatus.NotGroupAdmin);
 
@@ -125,27 +139,34 @@ public class GroupService : IGroupService
         group.IsPublic = request.IsPublic;
 
         await db.SaveChangesAsync();
-        var response = BuildGroupDetail(group, "Admin");
+        var response = BuildGroupDetail(group, Admin);
         return (response, UpdateGroupSettingsStatus.Success);
     }
 
     public async Task<(GroupDetailResponse response, bool found)> GetGroupDetailAsync(int userId, int groupId)
     {
-        var group = await db.Groups.FirstOrDefaultAsync(g => g.Id == groupId);
+        var group = await db.Groups
+            .Include(g => g.Members).ThenInclude(m => m.User)
+            .FirstOrDefaultAsync(g => g.Id == groupId);
         if (group == null)
             return (null, false);
 
         var membership = group.Members.FirstOrDefault(m => m.UserId == userId);
-        string myRole = membership?.Role;
+        if (membership == null && !group.IsPublic)
+            return (null, false);
 
+        string myRole = membership?.Role;
         var response = BuildGroupDetail(group, myRole);
         return (response, true);
     }
 
-    public async Task<List<GroupSummaryResponse>> SearchGroupsAsync(int userId, string query)
+    public async Task<List<GroupSummaryResponse>> SearchGroupsAsync(int userId, string query, int take = 20)
     {
         var groups = await db.Groups
+            .Include(g => g.Members)
+            .Include(g => g.GroupGoals)
             .Where(g => g.IsPublic && g.Name.Contains(query))
+            .Take(take)
             .ToListAsync();
 
         return groups.Select(g =>
@@ -164,7 +185,7 @@ public class GroupService : IGroupService
             Description = group.Description,
             ProfilePicture = group.ProfilePicture,
             IsPublic = group.IsPublic,
-            InviteCode = myRole == "Admin" ? group.InviteCode : null,
+            InviteCode = myRole == Admin ? group.InviteCode : null,
             MemberCount = group.Members.Count,
             GoalCount = group.GroupGoals.Count,
             MyRole = myRole,
@@ -181,7 +202,7 @@ public class GroupService : IGroupService
             Description = group.Description,
             ProfilePicture = group.ProfilePicture,
             IsPublic = group.IsPublic,
-            InviteCode = myRole == "Admin" ? group.InviteCode : null,
+            InviteCode = myRole == Admin ? group.InviteCode : null,
             MyRole = myRole,
             Members = group.Members.Select(m => new GroupMemberResponse
             {

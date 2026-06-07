@@ -1,9 +1,13 @@
 using LearningTracker.Api.Logic.DTO.Auth;
 using LearningTracker.Api.Logic.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LearningTracker.Api.API.Controllers;
 
+[AllowAnonymous]
+[EnableRateLimiting("auth")]
 public class AuthController : GlobalController
 {
     private readonly IAuthService authService;
@@ -43,6 +47,19 @@ public class AuthController : GlobalController
             GoogleLoginStatus.Success => Success(data),
             GoogleLoginStatus.InvalidToken => Fail("Google token לא תקין"),
             _ => Fail("שגיאה לא צפויה")
+        };
+    }
+
+    public async Task<IActionResult> Refresh(RefreshTokenRequest request)
+    {
+        var (data, status) = await authService.RefreshAsync(request.RefreshToken);
+        return status switch
+        {
+            RefreshStatus.Success      => Success(data),
+            RefreshStatus.InvalidToken => Fail("טוקן לא תקין"),
+            RefreshStatus.Expired      => Fail("טוקן פג תוקף"),
+            RefreshStatus.Revoked      => Fail("טוקן בוטל"),
+            _                          => Fail("שגיאה לא צפויה")
         };
     }
 }

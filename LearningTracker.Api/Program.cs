@@ -1,8 +1,11 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using ElmahCore.Mvc;
+using LearningTracker.Api.API.Middleware;
 using LearningTracker.Api.Data;
 using LearningTracker.Api.Logic.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -25,8 +28,7 @@ public class Program
 
         builder.Services.AddDbContext<AppDbContext>(options =>
         {
-            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
-                   .UseLazyLoadingProxies();
+            options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
         });
 
         var jwtKey = builder.Configuration["Jwt:Key"]!;
@@ -47,6 +49,17 @@ public class Program
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
                 };
             });
+
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.AddFixedWindowLimiter("auth", limiter =>
+            {
+                limiter.PermitLimit = 10;
+                limiter.Window = TimeSpan.FromMinutes(1);
+                limiter.QueueLimit = 0;
+            });
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        });
 
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IUserService, UserService>();
@@ -75,6 +88,8 @@ public class Program
 
     private static void Configure(WebApplication app)
     {
+        app.UseMiddleware<GlobalExceptionMiddleware>();
+
         if (!app.Environment.IsDevelopment())
         {
             app.UseHttpsRedirection();
@@ -85,6 +100,7 @@ public class Program
             app.UseCors();
         }
 
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseElmah();

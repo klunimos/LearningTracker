@@ -88,12 +88,12 @@ public class GroupController : GlobalController
         };
     }
 
-    public async Task<IActionResult> Search(string query)
+    public async Task<IActionResult> Search(string query, int take = 20)
     {
         if (string.IsNullOrWhiteSpace(query))
             return Fail("יש להזין מילות חיפוש");
 
-        var result = await groupService.SearchGroupsAsync(UserId, query);
+        var result = await groupService.SearchGroupsAsync(UserId, query, take);
         return Success(result);
     }
 }

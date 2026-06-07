@@ -1,4 +1,3 @@
-#nullable enable
 using System.ComponentModel.DataAnnotations;
 
 namespace LearningTracker.Api.Logic.DTO.Goal;
@@ -25,10 +24,6 @@ public class ReportProgressRequest
 {
     public int GoalId { get; set; }
     public int BookId { get; set; }
-    /// <summary>
-    /// IDs of units the user completed. May be non-contiguous; the service
-    /// groups them into contiguous ranges and creates one ProgressEntry per range.
-    /// </summary>
     public List<int> UnitIds { get; set; } = new();
-    public string? Note { get; set; }
+    public string Note { get; set; }
 }

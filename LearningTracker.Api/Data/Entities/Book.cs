@@ -9,11 +9,11 @@ public class Book
     public int CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    public virtual Category Category { get; set; }
-    public virtual User CreatedBy { get; set; }
-    public virtual ICollection<BookUnit> Units { get; set; }
-    public virtual ICollection<GoalBook> GoalBooks { get; set; }
-    public virtual ICollection<ProgressEntry> ProgressEntries { get; set; }
-    public virtual ICollection<GroupGoalBook> GroupGoalBooks { get; set; }
-    public virtual ICollection<GroupProgressEntry> GroupProgressEntries { get; set; }
+    public Category Category { get; set; }
+    public User CreatedBy { get; set; }
+    public ICollection<BookUnit> Units { get; set; }
+    public ICollection<GoalBook> GoalBooks { get; set; }
+    public ICollection<ProgressEntry> ProgressEntries { get; set; }
+    public ICollection<GroupGoalBook> GroupGoalBooks { get; set; }
+    public ICollection<GroupProgressEntry> GroupProgressEntries { get; set; }
 }

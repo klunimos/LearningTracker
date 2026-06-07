@@ -15,10 +15,22 @@ public class GoalController : GlobalController
         this.goalService = goalService;
     }
 
-    public async Task<IActionResult> GetMine([FromQuery] bool includeInactive = false)
+    public async Task<IActionResult> GetMine([FromQuery] bool includeInactive = false, [FromQuery] int take = 50)
     {
-        var result = await goalService.GetMyGoalsAsync(UserId, includeInactive);
+        var result = await goalService.GetMyGoalsAsync(UserId, includeInactive, take);
         return Success(result);
+    }
+
+    public async Task<IActionResult> GetById([FromQuery] int goalId)
+    {
+        if (goalId <= 0)
+            return Fail("מזהה יעד לא תקין");
+
+        var (response, found) = await goalService.GetByIdAsync(UserId, goalId);
+        if (!found)
+            return Fail("היעד לא נמצא");
+
+        return Success(response);
     }
 
     public async Task<IActionResult> SetActive(SetActiveRequest request)

@@ -24,3 +24,8 @@ TestResults/
 ## Node / Frontend
 node_modules/
 dist/
+
+## App secrets (env-specific config with credentials)
+appsettings.Development.json
+appsettings.Production.json
+appsettings.*.Local.json

@@ -10,8 +10,8 @@ public class Category
     public int CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
 
-    public virtual User CreatedBy { get; set; }
-    public virtual ICollection<Book> Books { get; set; }
-    public virtual ICollection<Goal> Goals { get; set; }
-    public virtual ICollection<GroupGoal> GroupGoals { get; set; }
+    public User CreatedBy { get; set; }
+    public ICollection<Book> Books { get; set; }
+    public ICollection<Goal> Goals { get; set; }
+    public ICollection<GroupGoal> GroupGoals { get; set; }
 }

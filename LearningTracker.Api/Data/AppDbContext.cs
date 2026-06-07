@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<GroupGoalBook> GroupGoalBooks { get; set; }
     public DbSet<GroupGoalMember> GroupGoalMembers { get; set; }
     public DbSet<GroupProgressEntry> GroupProgressEntries { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -147,6 +148,7 @@ public class AppDbContext : DbContext
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(256).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(1024);
+            entity.Property(x => x.ProfilePicture).HasMaxLength(1024);
             entity.Property(x => x.InviteCode).HasMaxLength(32).IsRequired();
             entity.HasIndex(x => x.InviteCode).IsUnique();
             entity.HasOne(x => x.CreatedBy)
@@ -190,7 +192,7 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.Restrict)
                   .IsRequired(false);
             entity.HasOne(x => x.CreatedBy)
-                  .WithMany()
+                  .WithMany(u => u.CreatedGroupGoals)
                   .HasForeignKey(x => x.CreatedByUserId)
                   .OnDelete(DeleteBehavior.Restrict);
         });
@@ -221,6 +223,18 @@ public class AppDbContext : DbContext
                   .WithMany(u => u.GroupGoalMembers)
                   .HasForeignKey(x => x.UserId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("RefreshTokens", "dbo");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Token).HasMaxLength(256).IsRequired();
+            entity.HasIndex(x => x.Token).IsUnique();
+            entity.HasOne(x => x.User)
+                  .WithMany(u => u.RefreshTokens)
+                  .HasForeignKey(x => x.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<GroupProgressEntry>(entity =>

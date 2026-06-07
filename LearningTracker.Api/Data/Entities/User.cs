@@ -12,12 +12,14 @@ public class User
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
-    public virtual ICollection<Goal> Goals { get; set; }
-    public virtual ICollection<ProgressEntry> ProgressEntries { get; set; }
-    public virtual ICollection<Category> CreatedCategories { get; set; }
-    public virtual ICollection<Book> CreatedBooks { get; set; }
-    public virtual ICollection<Group> CreatedGroups { get; set; }
-    public virtual ICollection<GroupMember> GroupMembers { get; set; }
-    public virtual ICollection<GroupGoalMember> GroupGoalMembers { get; set; }
-    public virtual ICollection<GroupProgressEntry> GroupProgressEntries { get; set; }
+    public ICollection<Goal> Goals { get; set; }
+    public ICollection<ProgressEntry> ProgressEntries { get; set; }
+    public ICollection<Category> CreatedCategories { get; set; }
+    public ICollection<Book> CreatedBooks { get; set; }
+    public ICollection<Group> CreatedGroups { get; set; }
+    public ICollection<GroupMember> GroupMembers { get; set; }
+    public ICollection<GroupGoalMember> GroupGoalMembers { get; set; }
+    public ICollection<GroupGoal> CreatedGroupGoals { get; set; }
+    public ICollection<GroupProgressEntry> GroupProgressEntries { get; set; }
+    public ICollection<RefreshToken> RefreshTokens { get; set; }
 }

@@ -10,7 +10,7 @@ description: MSSQL database expert for project management workflows. Designs sch
 - **Database**: `LearningTracker` (existing database)
 - **ORM**: EF Core — for queries and entities only. Do NOT add or run migrations (`Add-Migration`, `dotnet ef migrations add`).
 - **Schema updates**: SQL scripts only — no EF Core migrations. Entity models and `OnModelCreating` reflect the target schema; schema changes are applied via scripts.
-- **Connection**: `Server=__REDACTED_HOST__;Database=LearningTracker;User Id=mcp;Password=__REDACTED__;`
+- **Connection**: configured via environment variables / user-secrets (see `appsettings.json` placeholders). Do NOT hard-code credentials here.
 - **MCP**: DB access via `dbhub` MCP server — use `execute_sql`, `search_objects` to inspect schema and run queries.
 
 ## Schema Update Workflow
