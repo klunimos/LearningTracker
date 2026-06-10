@@ -10,12 +10,12 @@ SQLCMD=(docker exec -i lt-sqlserver /opt/mssql-tools18/bin/sqlcmd
         -S localhost -U sa -P "$SA_PASSWORD" -C)
 
 echo "Waiting for SQL Server to accept connections..."
-until "${SQLCMD[@]}" -Q "SELECT 1" >/dev/null 2>&1; do
+until "${SQLCMD[@]}" -Q "SELECT 1" </dev/null >/dev/null 2>&1; do
   sleep 2
 done
 
 echo "Ensuring database exists..."
-"${SQLCMD[@]}" -Q "IF DB_ID('LearningTracker') IS NULL CREATE DATABASE [LearningTracker];"
+"${SQLCMD[@]}" -Q "IF DB_ID('LearningTracker') IS NULL CREATE DATABASE [LearningTracker];" </dev/null
 
 SCRIPTS=(
   "scripts/2026-02-26_d1-core-schema.sql"
