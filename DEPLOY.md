@@ -32,9 +32,37 @@ ssh root@51.38.113.223
 
 # Docker engine + compose plugin
 curl -fsSL https://get.docker.com | sh
+```
 
-# (optional) basic firewall
-ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && ufw --force enable
+## 1b. (Optional) Graphical desktop over RDP
+
+Gives you a GUI you can reach with the standard Windows "Remote Desktop
+Connection" (mstsc) — connect to `51.38.113.223` as the `deploy` user.
+
+```bash
+apt update
+apt install -y xfce4 xfce4-goodies xrdp
+
+# xrdp works best as a regular (non-root) user
+adduser deploy
+usermod -aG sudo,docker deploy
+echo "xfce4-session" > /home/deploy/.xsession
+chown deploy:deploy /home/deploy/.xsession
+systemctl enable --now xrdp
+```
+
+For DB management with a GUI, install **Azure Data Studio** inside that desktop
+(cross-platform SSMS alternative).
+
+## 1c. Firewall
+
+```bash
+ufw allow 22/tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
+# RDP — restrict to YOUR home IP only (replace 1.2.3.4). Never open 3389 to all.
+ufw allow from 1.2.3.4 to any port 3389
+ufw --force enable
 ```
 
 ## 2. Get the code
