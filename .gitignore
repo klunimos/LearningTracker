@@ -29,3 +29,8 @@ dist/
 appsettings.Development.json
 appsettings.Production.json
 appsettings.*.Local.json
+
+## Deployment secrets / built frontend
+.env
+/www/*
+!/www/index.html

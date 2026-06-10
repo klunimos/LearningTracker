@@ -5,6 +5,7 @@ using LearningTracker.Api.API.Middleware;
 using LearningTracker.Api.Data;
 using LearningTracker.Api.Logic.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -88,6 +89,16 @@ public class Program
 
     private static void Configure(WebApplication app)
     {
+        // Running behind a reverse proxy (Caddy) that terminates TLS.
+        // Honor X-Forwarded-* so the app sees the original https scheme / client IP.
+        var forwardedOptions = new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+        };
+        forwardedOptions.KnownNetworks.Clear();
+        forwardedOptions.KnownProxies.Clear();
+        app.UseForwardedHeaders(forwardedOptions);
+
         app.UseMiddleware<GlobalExceptionMiddleware>();
 
         if (!app.Environment.IsDevelopment())

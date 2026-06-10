@@ -1,0 +1,53 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: lt-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD}
+      MSSQL_PID: "Express"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    restart: unless-stopped
+    networks: [ltnet]
+
+  api:
+    build:
+      context: ./LearningTracker.Api
+      dockerfile: Dockerfile
+    container_name: lt-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=LearningTracker;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;"
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: "LearningTracker"
+      Jwt__Audience: "LearningTracker"
+      AllowedOrigins__0: "https://chelkenu.org"
+      AllowedOrigins__1: "https://www.chelkenu.org"
+    depends_on: [sqlserver]
+    restart: unless-stopped
+    networks: [ltnet]
+
+  caddy:
+    image: caddy:2
+    container_name: lt-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./www:/srv/www:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [api]
+    restart: unless-stopped
+    networks: [ltnet]
+
+volumes:
+  mssql-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  ltnet:
