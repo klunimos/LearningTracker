@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."        # repo root
 set -a; . ./.env; set +a       # load SA_PASSWORD
 
 SQLCMD=(docker exec -i lt-sqlserver /opt/mssql-tools18/bin/sqlcmd
-        -S localhost -U sa -P "$SA_PASSWORD" -C)
+        -S localhost -U sa -P "$SA_PASSWORD" -C -b)
 
 echo "Waiting for SQL Server to accept connections..."
 until "${SQLCMD[@]}" -Q "SELECT 1" </dev/null >/dev/null 2>&1; do
