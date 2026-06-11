@@ -6,6 +6,10 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${SA_PASSWORD}
       MSSQL_PID: "Express"
+    ports:
+      # Reachable ONLY on the server's localhost (not the internet).
+      # Connect from your PC via an SSH tunnel.
+      - "127.0.0.1:1433:1433"
     volumes:
       - mssql-data:/var/opt/mssql
     restart: unless-stopped
