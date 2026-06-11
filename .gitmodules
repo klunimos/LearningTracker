@@ -1,0 +1,4 @@
+[submodule "learning-tracker-client"]
+	path = learning-tracker-client
+	url = https://github.com/klunimos/learning-tracker-client.git
+	branch = main
