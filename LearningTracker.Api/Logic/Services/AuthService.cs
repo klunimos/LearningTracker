@@ -67,7 +67,12 @@ public class AuthService : IAuthService
         GoogleJsonWebSignature.Payload payload;
         try
         {
-            payload = await GoogleJsonWebSignature.ValidateAsync(googleToken);
+            var settings = new GoogleJsonWebSignature.ValidationSettings();
+            var clientId = configuration["Google:ClientId"];
+            if (!string.IsNullOrWhiteSpace(clientId) && !clientId.StartsWith("YOUR_") && !clientId.StartsWith("REPLACE_"))
+                settings.Audience = new[] { clientId };
+
+            payload = await GoogleJsonWebSignature.ValidateAsync(googleToken, settings);
         }
         catch
         {

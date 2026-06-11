@@ -27,6 +27,7 @@ services:
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: "LearningTracker"
       Jwt__Audience: "LearningTracker"
+      Google__ClientId: "161922855918-8n6gftkqko3piisjrrkq7v77pppt22ak.apps.googleusercontent.com"
       AllowedOrigins__0: "https://chelkenu.org"
       AllowedOrigins__1: "https://www.chelkenu.org"
     depends_on: [sqlserver]
