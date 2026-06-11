@@ -3,15 +3,24 @@
 	email 8442104@gmail.com
 }
 
-# ---- API ----
+# API on its own subdomain (direct access / testing)
 api.chelkenu.org {
 	reverse_proxy api:8080
 }
 
-# ---- Frontend (Angular SPA) ----
+# Frontend (Angular SPA) + same-origin API under /api
+# (matches the Angular production environment: apiUrl = '/api')
 chelkenu.org, www.chelkenu.org {
-	root * /srv/www
-	encode gzip
-	try_files {path} /index.html
-	file_server
+	# /api/* -> API, with the /api prefix stripped before forwarding
+	handle_path /api/* {
+		reverse_proxy api:8080
+	}
+
+	# everything else -> static Angular files, SPA fallback to index.html
+	handle {
+		root * /srv/www
+		encode gzip
+		try_files {path} /index.html
+		file_server
+	}
 }
