@@ -7,6 +7,7 @@ public class Category
     public string L1Name { get; set; }
     public string L2Name { get; set; }
     public string UnitName { get; set; }
+    public int SortOrder { get; set; }
     public int CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
 

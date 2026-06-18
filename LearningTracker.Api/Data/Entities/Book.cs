@@ -6,6 +6,7 @@ public class Book
     public int CategoryId { get; set; }
     public string Name { get; set; }
     public string SeriesName { get; set; }
+    public int SortOrder { get; set; }
     public int CreatedByUserId { get; set; }
     public DateTime CreatedAt { get; set; }
 

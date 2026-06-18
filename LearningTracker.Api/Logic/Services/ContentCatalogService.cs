@@ -23,7 +23,8 @@ public class ContentCatalogService : IContentCatalogService
     public async Task<List<CategoryResponse>> GetAllCategoriesAsync()
     {
         return await db.Categories
-            .OrderBy(c => c.Name)
+            .OrderBy(c => c.SortOrder)
+            .ThenBy(c => c.Name)
             .Select(c => new CategoryResponse
             {
                 Id = c.Id,
@@ -39,7 +40,7 @@ public class ContentCatalogService : IContentCatalogService
     {
         return await db.Books
             .Where(b => b.CategoryId == categoryId)
-            .OrderBy(b => b.SeriesName)
+            .OrderBy(b => b.SortOrder)
             .ThenBy(b => b.Name)
             .Select(b => new BookSummaryResponse
             {

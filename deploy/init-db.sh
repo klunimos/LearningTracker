@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."        # repo root
 set -a; . ./.env; set +a       # load SA_PASSWORD
 
 SQLCMD=(docker exec -i lt-sqlserver /opt/mssql-tools18/bin/sqlcmd
-        -S localhost -U sa -P "$SA_PASSWORD" -C -b)
+        -S localhost -U sa -P "$SA_PASSWORD" -C -b -f 65001)
 
 echo "Waiting for SQL Server to accept connections..."
 until "${SQLCMD[@]}" -Q "SELECT 1" </dev/null >/dev/null 2>&1; do
@@ -24,6 +24,8 @@ SCRIPTS=(
   "scripts/2026-02-27_progress-entry-range.sql"
   "scripts/2026-03-15_group-profile-picture.sql"
   "LearningTracker.Api/Sql/CreateRefreshTokensTable.sql"
+  "scripts/2026-06-17_catalog-sortorder.sql"
+  "scripts/2026-06-17_seed-talmud-bavli.sql"
 )
 
 for f in "${SCRIPTS[@]}"; do
