@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<GroupGoalMember> GroupGoalMembers { get; set; }
     public DbSet<GroupProgressEntry> GroupProgressEntries { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -191,6 +192,11 @@ public class AppDbContext : DbContext
                   .HasForeignKey(x => x.CollectiveTargetUnitId)
                   .OnDelete(DeleteBehavior.Restrict)
                   .IsRequired(false);
+            entity.HasOne(x => x.StartUnit)
+                  .WithMany()
+                  .HasForeignKey(x => x.StartUnitId)
+                  .OnDelete(DeleteBehavior.Restrict)
+                  .IsRequired(false);
             entity.HasOne(x => x.CreatedBy)
                   .WithMany(u => u.CreatedGroupGoals)
                   .HasForeignKey(x => x.CreatedByUserId)
@@ -215,6 +221,7 @@ public class AppDbContext : DbContext
         {
             entity.ToTable("GroupGoalMembers", "dbo");
             entity.HasKey(x => new { x.GroupGoalId, x.UserId });
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
             entity.HasOne(x => x.GroupGoal)
                   .WithMany(gg => gg.GroupGoalMembers)
                   .HasForeignKey(x => x.GroupGoalId)
@@ -233,6 +240,18 @@ public class AppDbContext : DbContext
             entity.HasIndex(x => x.Token).IsUnique();
             entity.HasOne(x => x.User)
                   .WithMany(u => u.RefreshTokens)
+                  .HasForeignKey(x => x.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.ToTable("PasswordResetTokens", "dbo");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.TokenHash).HasMaxLength(128).IsRequired();
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasOne(x => x.User)
+                  .WithMany()
                   .HasForeignKey(x => x.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
         });

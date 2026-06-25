@@ -17,17 +17,21 @@ public interface IAuthService
     Task<(AuthResponse, LoginStatus)> LoginAsync(string email, string password);
     Task<(AuthResponse, GoogleLoginStatus)> GoogleLoginAsync(string googleToken);
     Task<(AuthResponse, RefreshStatus)> RefreshAsync(string refreshToken);
+    Task<ForgotPasswordStatus> ForgotPasswordAsync(string email, string clientBaseUrl);
+    Task<ResetPasswordStatus> ResetPasswordAsync(string token, string newPassword);
 }
 
 public class AuthService : IAuthService
 {
     private readonly AppDbContext db;
     private readonly IConfiguration configuration;
+    private readonly IEmailSender emailSender;
 
-    public AuthService(AppDbContext db, IConfiguration configuration)
+    public AuthService(AppDbContext db, IConfiguration configuration, IEmailSender emailSender)
     {
         this.db = db;
         this.configuration = configuration;
+        this.emailSender = emailSender;
     }
 
     public async Task<(AuthResponse, RegisterStatus)> RegisterAsync(string email, string password, string fullName)
@@ -125,6 +129,92 @@ public class AuthService : IAuthService
         await db.SaveChangesAsync();
 
         return (await BuildAuthResponseAsync(stored.User), RefreshStatus.Success);
+    }
+
+    public async Task<ForgotPasswordStatus> ForgotPasswordAsync(string email, string clientBaseUrl)
+    {
+        var normalizedEmail = email.ToLower().Trim();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        // Always report success so the response does not reveal whether an
+        // account exists for the given address (prevents email enumeration).
+        if (user == null)
+            return ForgotPasswordStatus.Success;
+
+        // Invalidate any outstanding reset tokens for this user.
+        var outstanding = await db.PasswordResetTokens
+            .Where(t => t.UserId == user.Id && t.UsedAt == null)
+            .ToListAsync();
+        foreach (var old in outstanding)
+            old.UsedAt = DateTime.UtcNow;
+
+        var rawToken = GenerateResetToken();
+        db.PasswordResetTokens.Add(new PasswordResetToken
+        {
+            UserId = user.Id,
+            TokenHash = HashToken(rawToken),
+            ExpiresAt = DateTime.UtcNow.AddHours(1),
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var baseUrl = clientBaseUrl.TrimEnd('/');
+        var resetLink = $"{baseUrl}/#/reset-password?token={Uri.EscapeDataString(rawToken)}";
+        await emailSender.SendPasswordResetAsync(user.Email, resetLink);
+
+        return ForgotPasswordStatus.Success;
+    }
+
+    public async Task<ResetPasswordStatus> ResetPasswordAsync(string token, string newPassword)
+    {
+        var tokenHash = HashToken(token);
+        var stored = await db.PasswordResetTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
+
+        if (stored == null)
+            return ResetPasswordStatus.InvalidToken;
+
+        if (stored.UsedAt != null)
+            return ResetPasswordStatus.Used;
+
+        if (stored.ExpiresAt <= DateTime.UtcNow)
+            return ResetPasswordStatus.Expired;
+
+        stored.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        stored.User.UpdatedAt = DateTime.UtcNow;
+        stored.UsedAt = DateTime.UtcNow;
+
+        // Revoke all active refresh tokens so existing sessions can no longer
+        // be silently extended after a password reset.
+        var activeRefreshTokens = await db.RefreshTokens
+            .Where(rt => rt.UserId == stored.UserId && !rt.IsRevoked)
+            .ToListAsync();
+        foreach (var rt in activeRefreshTokens)
+            rt.IsRevoked = true;
+
+        await db.SaveChangesAsync();
+
+        return ResetPasswordStatus.Success;
+    }
+
+    private static string GenerateResetToken()
+    {
+        return Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+    }
+
+    private static string HashToken(string token)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(token));
+        return Convert.ToHexString(bytes);
+    }
+
+    private static string Base64UrlEncode(byte[] bytes)
+    {
+        return Convert.ToBase64String(bytes)
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
     }
 
     private async Task<AuthResponse> BuildAuthResponseAsync(User user)

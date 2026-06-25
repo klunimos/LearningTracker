@@ -11,10 +11,12 @@ namespace LearningTracker.Api.API.Controllers;
 public class AuthController : GlobalController
 {
     private readonly IAuthService authService;
+    private readonly IConfiguration configuration;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, IConfiguration configuration)
     {
         this.authService = authService;
+        this.configuration = configuration;
     }
 
     public async Task<IActionResult> Register(RegisterRequest request)
@@ -61,5 +63,39 @@ public class AuthController : GlobalController
             RefreshStatus.Revoked      => Fail("טוקן בוטל"),
             _                          => Fail("שגיאה לא צפויה")
         };
+    }
+
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+    {
+        await authService.ForgotPasswordAsync(request.Email, ResolveClientBaseUrl());
+        // Always succeed regardless of whether the email exists (no enumeration).
+        return Success();
+    }
+
+    public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+    {
+        var status = await authService.ResetPasswordAsync(request.Token, request.NewPassword);
+        return status switch
+        {
+            ResetPasswordStatus.Success      => Success(),
+            ResetPasswordStatus.InvalidToken => Fail("הקישור אינו תקין"),
+            ResetPasswordStatus.Expired      => Fail("הקישור פג תוקף. נא לבקש איפוס סיסמה מחדש"),
+            ResetPasswordStatus.Used         => Fail("הקישור כבר נוצל. נא לבקש איפוס סיסמה מחדש"),
+            _                                => Fail("שגיאה לא צפויה")
+        };
+    }
+
+    private string ResolveClientBaseUrl()
+    {
+        var origin = Request.Headers.Origin.ToString();
+        if (!string.IsNullOrWhiteSpace(origin))
+            return origin;
+
+        var configured = configuration["Frontend:BaseUrl"];
+        if (!string.IsNullOrWhiteSpace(configured))
+            return configured;
+
+        return configuration.GetSection("AllowedOrigins").Get<string[]>()?.FirstOrDefault()
+            ?? "https://chelkenu.org";
     }
 }

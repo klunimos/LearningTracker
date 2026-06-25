@@ -30,6 +30,12 @@ public class GroupGoalController : GlobalController
         return Success(result);
     }
 
+    public async Task<IActionResult> GetJoinableGoals()
+    {
+        var result = await groupGoalService.GetJoinableGoalsAsync(UserId);
+        return Success(result);
+    }
+
     public async Task<IActionResult> Create(CreateGroupGoalRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Title))
@@ -81,6 +87,51 @@ public class GroupGoalController : GlobalController
             ReportGroupProgressStatus.BookNotInGoal   => Fail("הספר אינו חלק מיעד זה"),
             ReportGroupProgressStatus.UnitNotInBook   => Fail("היחידה אינה שייכת לספר זה"),
             _                                         => Fail("שגיאה לא צפויה")
+        };
+    }
+
+    public async Task<IActionResult> GetGoalDetail(int groupGoalId)
+    {
+        if (groupGoalId <= 0)
+            return Fail("מזהה יעד לא תקין");
+
+        var (result, found) = await groupGoalService.GetGoalDetailAsync(UserId, groupGoalId);
+        if (!found)
+            return Fail("היעד הקבוצתי לא נמצא או שאינך חבר בקבוצה");
+
+        return Success(result);
+    }
+
+    public async Task<IActionResult> SetCollectiveTarget(SetCollectiveTargetRequest request)
+    {
+        if (request.GroupGoalId <= 0)
+            return Fail("מזהה יעד לא תקין");
+
+        var (response, status) = await groupGoalService.SetCollectiveTargetAsync(UserId, request);
+
+        return status switch
+        {
+            SetCollectiveTargetStatus.Success      => Success(response),
+            SetCollectiveTargetStatus.GoalNotFound => Fail("היעד הקבוצתי לא נמצא"),
+            SetCollectiveTargetStatus.NotGroupAdmin => Fail("רק מנהל קבוצה יכול להגדיר את היעד הזמני"),
+            SetCollectiveTargetStatus.UnitNotInGoal => Fail("היחידה אינה שייכת ליעד זה"),
+            _                                       => Fail("שגיאה לא צפויה")
+        };
+    }
+
+    public async Task<IActionResult> SetParticipationActive(SetParticipationActiveRequest request)
+    {
+        if (request.GroupGoalId <= 0)
+            return Fail("מזהה יעד לא תקין");
+
+        var (response, status) = await groupGoalService.SetParticipationActiveAsync(UserId, request);
+
+        return status switch
+        {
+            SetParticipationActiveStatus.Success         => Success(response),
+            SetParticipationActiveStatus.GoalNotFound    => Fail("היעד הקבוצתי לא נמצא"),
+            SetParticipationActiveStatus.NotParticipating => Fail("אינך משתתף ביעד זה"),
+            _                                            => Fail("שגיאה לא צפויה")
         };
     }
 

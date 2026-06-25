@@ -34,3 +34,18 @@ public class RefreshTokenRequest
     [Required(AllowEmptyStrings = false)]
     public string RefreshToken { get; set; }
 }
+
+public class ForgotPasswordRequest
+{
+    [Required(AllowEmptyStrings = false)]
+    public string Email { get; set; }
+}
+
+public class ResetPasswordRequest
+{
+    [Required(AllowEmptyStrings = false)]
+    public string Token { get; set; }
+
+    [Required(AllowEmptyStrings = false)]
+    public string NewPassword { get; set; }
+}

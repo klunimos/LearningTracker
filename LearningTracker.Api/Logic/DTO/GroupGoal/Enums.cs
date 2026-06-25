@@ -26,3 +26,18 @@ public enum ReportGroupProgressStatus
     BookNotInGoal,
     UnitNotInBook
 }
+
+public enum SetCollectiveTargetStatus
+{
+    Success,
+    GoalNotFound,
+    NotGroupAdmin,
+    UnitNotInGoal
+}
+
+public enum SetParticipationActiveStatus
+{
+    Success,
+    GoalNotFound,
+    NotParticipating
+}

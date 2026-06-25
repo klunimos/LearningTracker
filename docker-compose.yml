@@ -30,6 +30,14 @@ services:
       Google__ClientId: "161922855918-8n6gftkqko3piisjrrkq7v77pppt22ak.apps.googleusercontent.com"
       AllowedOrigins__0: "https://chelkenu.org"
       AllowedOrigins__1: "https://www.chelkenu.org"
+      Frontend__BaseUrl: "https://chelkenu.org"
+      Smtp__Host: ${SMTP_HOST:-}
+      Smtp__Port: ${SMTP_PORT:-587}
+      Smtp__User: ${SMTP_USER:-}
+      Smtp__Password: ${SMTP_PASSWORD:-}
+      Smtp__From: ${SMTP_FROM:-}
+      Smtp__FromName: ${SMTP_FROM_NAME:-חלקנו}
+      Smtp__EnableSsl: ${SMTP_ENABLE_SSL:-true}
     depends_on: [sqlserver]
     restart: unless-stopped
     networks: [ltnet]

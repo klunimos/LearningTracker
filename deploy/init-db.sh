@@ -24,8 +24,11 @@ SCRIPTS=(
   "scripts/2026-02-27_progress-entry-range.sql"
   "scripts/2026-03-15_group-profile-picture.sql"
   "LearningTracker.Api/Sql/CreateRefreshTokensTable.sql"
+  "LearningTracker.Api/Sql/CreatePasswordResetTokensTable.sql"
   "scripts/2026-06-17_catalog-sortorder.sql"
   "scripts/2026-06-17_seed-talmud-bavli.sql"
+  "LearningTracker.Api/Sql/AddStartUnitToGroupGoals.sql"
+  "LearningTracker.Api/Sql/AddIsActiveToGroupGoalMembers.sql"
 )
 
 for f in "${SCRIPTS[@]}"; do

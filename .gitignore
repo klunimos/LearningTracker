@@ -34,3 +34,5 @@ appsettings.*.Local.json
 .env
 /www/*
 !/www/index.html
+
+.claude/settings.local.json

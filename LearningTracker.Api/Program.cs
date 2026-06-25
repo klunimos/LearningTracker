@@ -62,6 +62,7 @@ public class Program
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
         });
 
+        builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IContentCatalogService, ContentCatalogService>();
